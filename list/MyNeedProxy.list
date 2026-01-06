@@ -1,0 +1,13 @@
+# 内容：自定义需要代理的网站
+
+# 域名匹配
+#DOMAIN,copilot.microsoft.com
+# polyun 的 代理订阅
+DOMAIN,fqq-nabaidu.cn-huoshancc.poly-gf.com
+
+# 域名后缀匹配
+# hk-beup 的 emby
+DOMAIN-SUFFIX,beupisp.com
+
+# 域名关键字匹配
+# DOMAIN-KEYWORD,openai
