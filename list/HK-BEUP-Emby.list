@@ -2,10 +2,11 @@
 
 # 域名匹配
 #DOMAIN,copilot.microsoft.com
+DOMAIN,e.beupisp.com
 
 # 域名后缀匹配
 # hk-beup 的 emby
-DOMAIN-SUFFIX,beupisp.com
+#DOMAIN-SUFFIX,beupisp.com
 
 # 域名关键字匹配
 # DOMAIN-KEYWORD,openai
