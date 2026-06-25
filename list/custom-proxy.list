@@ -89,6 +89,9 @@
 #   不影响该 App 访问其他国内接口。
 DOMAIN-SUFFIX,tripdata.app
 
+# http/socks 代理服务
+DOMAIN-SUFFIX,thordata.net
+
 
 # ============================================================
 # 三、域名关键字匹配：DOMAIN-KEYWORD
