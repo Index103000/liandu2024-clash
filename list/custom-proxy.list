@@ -2,17 +2,39 @@
 # 规则集合名称：custom-proxy.list
 # 规则集合用途：自定义需要走代理 / 外网节点的网站、域名、IP、应用进程
 #
+# 文件类型：
+#   Clash / Mihomo / OpenClash classical rule-provider 规则集
+#
 # 适用场景：
 #   1. 某些网站直连访问慢、失败、超时
 #   2. 某些服务需要走代理节点才能正常访问
 #   3. 某些 App / 程序 / 设备流量需要单独代理
-#   4. 从 Clash / Mihomo 日志中发现需要手动补充的域名、IP、进程
+#   4. 从 Clash / Mihomo / OpenClash 日志中发现需要手动补充的域名、IP、进程
+#   5. 某些代理服务商、HTTP 代理入口、SOCKS 代理入口需要先走外网节点才能稳定访问
 #
 # 使用原则：
 #   - 本文件只存放“明确需要走代理”的规则
 #   - 优先使用域名规则，尽量少用 IP 规则
+#   - 能用 DOMAIN-SUFFIX 覆盖的，通常不要直接使用 DOMAIN-KEYWORD
 #   - 应用 / 进程级别规则影响范围较大，建议谨慎启用
+#   - IP-CIDR 规则容易误伤 CDN、共享 IP、云服务 IP，使用前建议确认
 #   - 银行、支付、交易所、政务、国内常用 App 不建议随意加入
+#
+# 推荐匹配思路：
+#   1. 只匹配一个完整域名：
+#      使用 DOMAIN
+#
+#   2. 匹配一个站点及其所有子域名：
+#      使用 DOMAIN-SUFFIX
+#
+#   3. 域名变化非常多，且后缀不固定：
+#      谨慎使用 DOMAIN-KEYWORD
+#
+#   4. 只知道目标 IP，或者服务固定访问某个 IP：
+#      使用 IP-CIDR / IP-CIDR6
+#
+#   5. 某个应用所有流量都需要代理：
+#      再考虑 PROCESS-NAME
 #
 # 主配置引用示例：
 #
@@ -30,6 +52,22 @@
 #   - behavior 必须使用 classical
 #   - 本文件中每条规则不需要写最终策略组
 #   - 最终走哪个节点，由主配置中的 RULE-SET 决定
+#
+# 例如：
+#
+#   本文件中写：
+#     DOMAIN-SUFFIX,example.com
+#
+#   主配置中写：
+#     - RULE-SET,custom-proxy,🚀 节点选择
+#
+#   实际效果：
+#     example.com 及其子域名会走 “🚀 节点选择”
+#
+# 不要在本 rule-provider 文件里写成：
+#   DOMAIN-SUFFIX,example.com,🚀 节点选择
+#
+# 这是普通 rules 写法，不是 classical rule-provider 文件写法。
 # ============================================================
 
 
@@ -50,10 +88,17 @@
 #   api.copilot.microsoft.com
 #
 # 适合场景：
-#   只想让某一个精确域名走代理，不影响其他子域名。
+#   1. 只想让某一个精确域名走代理
+#   2. 不希望影响该域名下面的其他子域名
+#   3. 某个服务只有固定 API 域名需要代理
+#
+# 注意：
+#   DOMAIN 是精确匹配，不会自动匹配子域名。
+#   如果你希望匹配所有子域名，应使用 DOMAIN-SUFFIX。
 # ============================================================
 
-# Microsoft Copilot
+# Microsoft Copilot 精确域名示例
+# 只匹配 copilot.microsoft.com，不匹配其他 Microsoft 子域名。
 # DOMAIN,copilot.microsoft.com
 
 
@@ -73,8 +118,16 @@
 #   cdn.api.example.com
 #
 # 适合场景：
-#   一个网站或 App 有多个子域名、API、CDN、图片域名时，
-#   优先使用 DOMAIN-SUFFIX。
+#   1. 一个网站或 App 有多个子域名
+#   2. 服务存在 API、图片、CDN、统计、接口等多个域名
+#   3. 日志中能看到明确的主域名
+#
+# 推荐：
+#   大多数手动补充网站 / App 规则时，优先使用 DOMAIN-SUFFIX。
+#
+# 注意：
+#   DOMAIN-SUFFIX,example.com 会覆盖 example.com 及其所有子域名。
+#   如果只想匹配单个域名，请改用 DOMAIN。
 # ============================================================
 
 # 示例：某个需要代理的网站
@@ -82,14 +135,25 @@
 
 # 爱一帆 / ifvod
 # 日志示例：
-#   com.cqcsy.ifvod --> api.tripdata.app:443
+#   127.0.0.1:43712(com.cqcsy.ifvod) --> api.tripdata.app:443
 #
-# 推荐优先使用域名后缀匹配：
+# 说明：
+#   该日志中已经能看到明确域名 api.tripdata.app。
+#   因此优先使用 DOMAIN-SUFFIX,tripdata.app，
+#   而不是直接使用 PROCESS-NAME,com.cqcsy.ifvod。
+#
+# 好处：
 #   只让 tripdata.app 及其子域名走代理，
 #   不影响该 App 访问其他国内接口。
 DOMAIN-SUFFIX,tripdata.app
 
-# http/socks 代理服务
+# Thordata HTTP / SOCKS 代理服务域名
+# 用途：
+#   让代理服务商相关域名走代理，避免本地直连失败、解析异常、连接超时。
+#
+# 注意：
+#   如果代理服务商还使用了其他域名、API 域名、认证域名，
+#   可以从 Clash / Mihomo 日志中继续补充。
 DOMAIN-SUFFIX,thordata.net
 
 
@@ -102,18 +166,36 @@ DOMAIN-SUFFIX,thordata.net
 # 示例：
 #   DOMAIN-KEYWORD,openai
 #
-# 匹配：
+# 可能匹配：
 #   openai.com
 #   api.openai.com
 #   chat.openai.com
 #   openaicdn.com
+#   example-openai-test.com
+#
+# 适合场景：
+#   1. 某类服务域名变化较多
+#   2. 无法用单个 DOMAIN-SUFFIX 完整覆盖
+#   3. 明确知道关键字不会误伤太多无关域名
 #
 # 注意：
 #   DOMAIN-KEYWORD 匹配范围较大，容易误伤。
 #   除非域名变化非常多，否则优先使用 DOMAIN-SUFFIX。
+#
+# 不建议：
+#   不要随意添加过短、过泛的关键字，例如：
+#     api
+#     cdn
+#     cloud
+#     video
+#
+#   这类关键字会误伤大量正常网站。
 # ============================================================
 
-# OpenAI 相关域名示例
+# OpenAI 相关域名关键字示例
+# 注意：
+#   这里只是示例。
+#   如果你已经使用了专门的 OpenAI 规则集，通常不需要在这里重复添加。
 # DOMAIN-KEYWORD,openai
 
 
@@ -124,28 +206,120 @@ DOMAIN-SUFFIX,thordata.net
 #   IP-CIDR 用于匹配 IPv4 地址或 IPv4 网段。
 #
 # 示例：
-#   IP-CIDR,1.1.1.1/32
-#   IP-CIDR,203.0.113.0/24
+#   IP-CIDR,1.1.1.1/32,no-resolve
+#   IP-CIDR,203.0.113.0/24,no-resolve
+#
+# 含义：
+#   /32 表示只匹配单个 IPv4 地址。
+#   /24 表示匹配一个 IPv4 网段，例如 203.0.113.0 - 203.0.113.255。
 #
 # 适合场景：
 #   1. Clash / Mihomo 日志中只看到 IP，没有域名
 #   2. 某些 App / 程序直接访问固定 IP
 #   3. 某些服务域名规则无法覆盖
+#   4. 访问自建 VPS、代理入口、网关、HTTP 代理、SOCKS 代理等固定 IP
+#
+# no-resolve 说明：
+#   IP-CIDR,x.x.x.x/32,no-resolve
+#
+#   no-resolve 表示：
+#     这条规则只匹配已经得到的目标 IP，
+#     不要为了这条 IP 规则额外触发 DNS 解析。
+#
+# 推荐：
+#   对于直接写死的 IP / 网段，建议加 no-resolve。
 #
 # 注意：
 #   - 能用域名规则时，优先用域名规则
-#   - IP 可能属于 CDN，容易误伤其他网站
-#   - /32 表示只匹配单个 IPv4
+#   - IP 可能属于 CDN、云服务、共享出口，容易误伤其他网站
+#   - IP 规则建议尽量写精确，优先 /32，谨慎使用大网段
+#   - 如果某个 IP 同时也是 Clash / OpenClash 的代理节点 server，
+#     可能会受到“绕过服务器地址 / 防回环”机制影响
+#
+# OpenClash 特别说明：
+#   OpenClash 中如果启用了“绕过服务器地址”之类的功能，
+#   代理节点的 server IP 可能不会进入普通规则匹配。
+#
+#   例如：
+#     95.169.11.55 同时是某个节点 server，
+#     又是你想访问的 S-UI mixed 入口。
+#
+#   此时即使你写了：
+#     IP-CIDR,95.169.11.55/32,no-resolve
+#
+#   OpenClash 也可能优先把它当作“代理服务器地址”绕过，
+#   导致规则不生效、日志里看不到连接。
+#
+#   关闭“绕过服务器地址”后，该 IP 可能重新进入规则匹配，
+#   但代价是存在代理回环风险。
+#
+# 代理回环示例：
+#   OpenClash 使用 95.169.11.55 这个节点作为出口，
+#   同时又访问 95.169.11.55:31292，
+#   并且规则要求 95.169.11.55 走代理。
+#
+#   链路可能变成：
+#     OpenClash -> 95.169.11.55 节点 -> 95.169.11.55:31292
+#
+#   如果出口节点和目标入口是同一台机器或同一个 IP，
+#   可能出现回环、超时、测速失败、节点不可用等问题。
+#
+# 建议：
+#   如果要代理访问自建 mixed / HTTP / SOCKS 入口，
+#   最好使用一个不包含该入口 IP 的专用策略组。
+#
+#   例如：
+#     custom-proxy-entry.list -> 🧩 自建入口中转
+#
+#   并确保 “🧩 自建入口中转” 策略组里不要选择 95.169.11.55 自身节点。
 # ============================================================
 
 # 单个 IPv4 示例
-# IP-CIDR,1.1.1.1/32
+# IP-CIDR,1.1.1.1/32,no-resolve
 
-# bandwagonghost 自建节点
+# BandwagonHost 自建 S-UI mixed 代理入口
+#
+# 当前用途：
+#   本地或内网设备访问：
+#     http://95.169.11.55:31292
+#
+#   该端口由 S-UI 的 mixed 入站提供，
+#   可作为 HTTP / SOCKS 代理入口使用。
+#
+# 为什么需要让它走代理：
+#   如果从国内网络直连该 mixed 入口，
+#   HTTP CONNECT 请求中的目标信息可能以明文形式暴露。
+#
+#   例如访问：
+#     curl -x http://user:pass@95.169.11.55:31292 https://www.google.com
+#
+#   客户端会向代理入口发送：
+#     CONNECT www.google.com:443 HTTP/1.1
+#
+#   这段 CONNECT 请求在本地到代理入口之间不是加密代理协议，
+#   可能被中间网络识别或干扰，导致 connection reset。
+#
+#   因此可以让访问 95.169.11.55:31292 这段连接先经过 Clash / OpenClash 的外网节点，
+#   再访问 S-UI mixed 入口。
+#
+# 当前规则作用：
+#   这条规则不是让 google.com 走代理，
+#   而是让 “访问 95.169.11.55 这个代理入口本身” 走代理。
+#
+# 注意：
+#   如果 OpenClash 启用了“绕过服务器地址”，
+#   且 95.169.11.55 同时也是某个代理节点 server，
+#   这条规则可能会被绕过。
+#
+#   关闭“绕过服务器地址”后通常可以生效，
+#   但要避免当前出口节点也选择 95.169.11.55 自身，
+#   否则可能出现代理回环。
 IP-CIDR,95.169.11.55/32,no-resolve
 
 # IPv4 网段示例
-# IP-CIDR,203.0.113.0/24
+# 仅在明确知道整个网段都需要代理时再启用。
+# IP-CIDR,203.0.113.0/24,no-resolve
+
 
 # ============================================================
 # 五、IPv6 地址匹配：IP-CIDR6
@@ -154,18 +328,30 @@ IP-CIDR,95.169.11.55/32,no-resolve
 #   IP-CIDR6 用于匹配 IPv6 地址或 IPv6 网段。
 #
 # 示例：
-#   IP-CIDR6,2606:4700:4700::1111/128
+#   IP-CIDR6,2606:4700:4700::1111/128,no-resolve
+#   IP-CIDR6,2001:db8::/32,no-resolve
+#
+# 含义：
+#   /128 表示只匹配单个 IPv6 地址。
+#   /32、/48、/64 等表示匹配 IPv6 网段。
+#
+# 适合场景：
+#   1. 目标服务直接访问 IPv6 地址
+#   2. 日志中只看到 IPv6，没有域名
+#   3. 某些 IPv6-only 服务需要走代理
 #
 # 注意：
-#   如果你的 Clash / Mihomo 已关闭 IPv6，
-#   这里通常不需要配置。
+#   - 如果 Clash / Mihomo / OpenClash 已关闭 IPv6，这里通常不需要配置
+#   - 如果你的网络没有稳定 IPv6，也不建议随意添加 IPv6 规则
+#   - IPv6 网段范围可能非常大，添加前要确认影响范围
+#   - 直接写死 IPv6 地址或网段时，也建议加 no-resolve
 # ============================================================
 
 # 单个 IPv6 示例
-# IP-CIDR6,2606:4700:4700::1111/128
+# IP-CIDR6,2606:4700:4700::1111/128,no-resolve
 
 # IPv6 网段示例
-# IP-CIDR6,2001:db8::/32
+# IP-CIDR6,2001:db8::/32,no-resolve
 
 
 # ============================================================
@@ -179,13 +365,37 @@ IP-CIDR,95.169.11.55/32,no-resolve
 #   Android 手机日志：
 #     127.0.0.1:43712(com.cqcsy.ifvod) --> api.tripdata.app:443
 #
-#   Windows / macOS / Linux：
-#     日志中可能显示 chrome.exe、Telegram.exe、python、curl 等进程名
+#   Windows：
+#     日志中可能显示：
+#       chrome.exe
+#       Telegram.exe
+#       curl.exe
+#       python.exe
+#
+#   macOS / Linux：
+#     日志中可能显示：
+#       Google Chrome
+#       Telegram
+#       curl
+#       python
 #
 #   软路由 / 网关环境：
 #     通常无法可靠识别终端设备上的具体应用进程，
-#     因为流量已经从其他设备转发过来。
-#     这种场景更适合使用域名、IP、源 IP、设备网段等方式分流。
+#     因为流量已经从其他设备转发到路由器。
+#
+#     例如：
+#       手机 App -> 路由器 OpenClash -> 目标网站
+#
+#     OpenClash 看到的通常是设备 IP、目标域名、目标 IP，
+#     不一定能知道手机上具体是哪个 App。
+#
+#     这种场景更适合使用：
+#       DOMAIN
+#       DOMAIN-SUFFIX
+#       IP-CIDR
+#       SRC-IP-CIDR
+#       SRC-PORT
+#       DST-PORT
 #
 # 示例：
 #   PROCESS-NAME,com.cqcsy.ifvod
@@ -198,46 +408,124 @@ IP-CIDR,95.169.11.55/32,no-resolve
 #   2. Android 上通常对应 App 包名
 #   3. Windows 上通常对应 exe 文件名
 #   4. macOS / Linux 上通常对应进程名
-#   5. 软路由通常不适合依赖 PROCESS-NAME
+#   5. 软路由 / 网关环境通常不适合依赖 PROCESS-NAME
 #   6. 启用后，该应用 / 进程的所有流量都会走代理
 #   7. 如果只想代理某个接口，优先使用 DOMAIN / DOMAIN-SUFFIX
 #
-# 推荐使用顺序：
-#   DOMAIN > DOMAIN-SUFFIX > DOMAIN-KEYWORD > PROCESS-NAME > IP-CIDR
+# 使用建议：
+#   - 如果日志中能看到域名，优先写域名规则
+#   - 如果一个 App 只有少量接口需要代理，不建议直接写 PROCESS-NAME
+#   - 如果一个 App 的全部流量都需要代理，再考虑 PROCESS-NAME
+#
+# 推荐判断顺序：
+#   1. 能精确匹配单个域名：
+#      DOMAIN
+#
+#   2. 需要覆盖主域名和多个子域名：
+#      DOMAIN-SUFFIX
+#
+#   3. 域名变化多且后缀不固定：
+#      DOMAIN-KEYWORD
+#
+#   4. 只知道固定 IP：
+#      IP-CIDR / IP-CIDR6
+#
+#   5. 整个应用都需要代理：
+#      PROCESS-NAME
 # ============================================================
 
 # 爱一帆 / ifvod Android App 示例
+# 说明：
+#   启用后，com.cqcsy.ifvod 这个 App 的所有流量都可能走代理。
+#   如果只是 api.tripdata.app 需要代理，建议优先使用：
+#     DOMAIN-SUFFIX,tripdata.app
 # PROCESS-NAME,com.cqcsy.ifvod
 
 # 桌面端浏览器示例
+# 说明：
+#   不建议轻易启用。
+#   启用后，浏览器所有流量都会走代理，可能影响国内网站访问。
 # PROCESS-NAME,chrome.exe
 
 # 命令行工具示例
+# 说明：
+#   启用后，curl 发起的所有连接都会走代理。
+#   如果只是某个目标需要代理，建议优先使用目标域名或 IP 规则。
 # PROCESS-NAME,curl
 
 
 # ============================================================
-# 七、规则添加建议
+# 七、端口匹配示例：DST-PORT / SRC-PORT
 # ------------------------------------------------------------
-# 1. 先看 Clash / Mihomo 日志
+# 说明：
+#   部分 Clash / Mihomo 内核支持按目标端口或源端口匹配。
 #
-#    示例：
-#      com.cqcsy.ifvod --> api.tripdata.app:443
+# 常见规则：
+#   DST-PORT：匹配目标端口
+#   SRC-PORT：匹配源端口
+#
+# 示例：
+#   DST-PORT,443
+#   DST-PORT,31292
+#
+# 注意：
+#   1. 端口规则影响范围可能非常大
+#   2. DST-PORT,443 会匹配大量 HTTPS 流量，通常不建议放进通用代理规则集
+#   3. 如果只想代理某个服务，优先使用 DOMAIN / IP-CIDR
+#   4. rule-provider classical 是否支持具体规则类型，取决于你的 Clash / Mihomo 内核版本
+#
+# 本文件默认不启用端口规则。
+# ============================================================
+
+# 目标端口示例：匹配所有访问 31292 端口的连接
+# 注意：
+#   这会影响所有目标 IP 的 31292 端口，不够精确。
+#   如果只想匹配 95.169.11.55:31292，
+#   更推荐使用：
+#     IP-CIDR,95.169.11.55/32,no-resolve
+# DST-PORT,31292
+
+
+# ============================================================
+# 八、规则添加建议
+# ------------------------------------------------------------
+# 1. 先看 Clash / Mihomo / OpenClash 日志
+#
+#    日志示例：
+#      127.0.0.1:43712(com.cqcsy.ifvod) --> api.tripdata.app:443
+#
+#    可以得到：
+#      App 包名：com.cqcsy.ifvod
+#      目标域名：api.tripdata.app
+#      目标端口：443
 #
 # 2. 优先添加域名规则
 #
 #    推荐：
 #      DOMAIN-SUFFIX,tripdata.app
 #
+#    不推荐一开始就添加：
+#      PROCESS-NAME,com.cqcsy.ifvod
+#
+#    原因：
+#      PROCESS-NAME 会影响整个 App 的所有流量。
+#
 # 3. 如果同一个应用存在大量未知域名
 #
+#    可以先观察一段时间日志，再补充多个 DOMAIN-SUFFIX。
+#
+#    只有当域名过多、变化频繁、确实都需要代理时，
 #    再考虑添加进程规则：
 #      PROCESS-NAME,com.cqcsy.ifvod
 #
 # 4. 如果日志里只有 IP，没有域名
 #
 #    再考虑添加 IP 规则：
-#      IP-CIDR,x.x.x.x/32
+#      IP-CIDR,x.x.x.x/32,no-resolve
+#
+#    注意：
+#      不要轻易添加大网段，例如 /16、/8。
+#      除非你非常确定该网段都需要代理。
 #
 # 5. 对地区敏感服务不要随便代理
 #
@@ -246,8 +534,52 @@ IP-CIDR,95.169.11.55/32,no-resolve
 #      银行
 #      支付
 #      政务
+#      国内视频会员
+#      国内电商
 #
-#    这些服务更建议单独建策略组，
-#    例如 DIRECT / 香港 / 新加坡 / 日本，
-#    而不是直接放进 custom-proxy.list。
+#    这些服务可能会因为出口地区变化导致：
+#      风控
+#      登录异常
+#      验证码增多
+#      账户限制
+#      支付失败
+#
+#    更建议单独建策略组，例如：
+#      DIRECT
+#      香港
+#      新加坡
+#      日本
+#      美国
+#
+#    不建议直接放进 custom-proxy.list 统一走 “🚀 节点选择”。
+#
+# 6. 自建代理入口建议单独管理
+#
+#    如果某个 IP 是你的自建 S-UI mixed / HTTP / SOCKS 代理入口，
+#    且你希望访问这个入口本身也先走代理，
+#    可以放在本文件中：
+#      IP-CIDR,95.169.11.55/32,no-resolve
+#
+#    但更稳的方式是单独拆分一个规则集：
+#      custom-proxy-entry.list
+#
+#    然后在主配置里绑定到专用策略组：
+#      - RULE-SET,custom-proxy-entry,🧩 自建入口中转
+#      - RULE-SET,custom-proxy,🚀 节点选择
+#      - MATCH,➡️ 国内
+#
+#    这样可以避免普通网站代理规则和“自建代理入口中转规则”混在一起。
+#
+# 7. 如果关闭了 OpenClash 的“绕过服务器地址”
+#
+#    需要重点观察：
+#      - 节点测速是否正常
+#      - 节点是否大量 timeout
+#      - OpenClash 是否启动变慢
+#      - 订阅更新是否正常
+#      - DNS 是否异常
+#      - 日志中是否出现访问同一代理服务器 IP 的循环连接
+#
+#    如果出现异常，建议恢复“绕过服务器地址”，
+#    或者把自建 mixed 入口换成不同 IP / 不同域名 / 不同 VPS。
 # ============================================================
