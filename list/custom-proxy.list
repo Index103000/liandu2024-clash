@@ -90,7 +90,7 @@
 DOMAIN-SUFFIX,tripdata.app
 
 # http/socks 代理服务
-DOMAIN-SUFFIX,thordata.net
+# DOMAIN-SUFFIX,thordata.net
 
 
 # ============================================================
@@ -142,7 +142,7 @@ DOMAIN-SUFFIX,thordata.net
 # IP-CIDR,1.1.1.1/32
 
 # bandwagonghost 自建节点
-#IP-CIDR,95.169.11.55/32,no-resolve
+# IP-CIDR,95.169.11.55/32,no-resolve
 
 # IPv4 网段示例
 # IP-CIDR,203.0.113.0/24
