@@ -90,7 +90,7 @@
 DOMAIN-SUFFIX,tripdata.app
 
 # http/socks 代理服务
-# DOMAIN-SUFFIX,thordata.net
+DOMAIN-SUFFIX,thordata.net
 
 
 # ============================================================
