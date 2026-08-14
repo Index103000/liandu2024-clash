@@ -317,7 +317,7 @@ DOMAIN-SUFFIX,thordata.net
 IP-CIDR,95.169.11.55/32,no-resolve
 
 # BWH year 2027-08-12
-IP-CIDR,173.242.125.205/32,no-resolve
+IP-CIDR,45.78.71.192/32,no-resolve
 
 # DMIT year 2027-08-13
 IP-CIDR,179.255.101.208/32,no-resolve
